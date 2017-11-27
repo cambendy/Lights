@@ -112,12 +112,12 @@ int delaySpeed = 100;
 int whiteLed = 0;
 void MoveWhiteLed()
 {
-      //Serial.println (sensorValue );
-    if ((millis() - lastLEDTime) > sensorValue)
+    if ((millis() - lastLEDTime) > delaySpeed)
     {
       settingsLEDS[whiteLed] = CRGB::Black;
       if (whiteLed == NUM_SETTINGS_LEDS) {
-        whiteLed = 0;}
+        whiteLed = 0;
+        }
       else  {
         whiteLed++;
       }
