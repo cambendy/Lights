@@ -22,7 +22,7 @@ unsigned long updateModeTime = 0; // Used to time out MODE changing
 
 uint8_t gHue = 0;                 // rotating "base color" used by many of the patterns
 
-#define NUM_SETTINGS_LEDS 12
+#define NUM_SETTINGS_LEDS 50
 #define SETTINGS_LEDS_PIN 4
 
 // This is an array of leds.  One item for each led in your strip.
@@ -109,22 +109,24 @@ void nextMode()
 }
 
 int delaySpeed = 100;
+int whiteLed = 0;
 void MoveWhiteLed()
 {
-  // Move a single white led
-  for (int whiteLed = 0; whiteLed < NUM_SETTINGS_LEDS; whiteLed = whiteLed + 1)
-  {
-    // Turn our current led on to white, then show the leds
-    settingsLEDS[whiteLed] = CRGB::Violet;
+    if ((millis() - lastLEDTime) > delaySpeed)
+    {
+      settingsLEDS[whiteLed] = CRGB::Black;
+      if (whiteLed == NUM_SETTINGS_LEDS) {
+        whiteLed = 0;
+        }
+      else  {
+        whiteLed++;
+      }
+      settingsLEDS[whiteLed] = CRGB::Violet;
+      FastLED.show();
 
-    // Show the leds (only one of which is set to white, from above)
-    FastLED.show();
-
-    FastLED.delay(delaySpeed);
-
-    // Turn our current led back to black for the next loop around
-    settingsLEDS[whiteLed] = CRGB::Black;
-  }
+      lastLEDTime = millis();
+    }
+ 
 }
 
 void FlashLED()
