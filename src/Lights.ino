@@ -6,7 +6,7 @@
 int brightnessDial = A0;          // select the input pin for the potentiometer
 int ledPin = 13;                  // select the pin for the LED
 
-int sensorValue = 0;              // variable to store the value coming from the sensor
+unsigned int sensorValue = 0;              // variable to store the value coming from the sensor
 
 int ledState = HIGH;              // the current state of the output pin
 bool ledsOn = false;
@@ -17,7 +17,7 @@ unsigned long lastLEDTime = 0;    // the last time the LED was toggled
 bool updateMode = false;
 unsigned long updateModeTime = 0; // Used to time out MODE changing
 
-#define BRIGHTNESS 96
+#define BRIGHTNESS 32
 #define FRAMES_PER_SECOND 12
 
 uint8_t gHue = 0;                 // rotating "base color" used by many of the patterns
@@ -25,8 +25,31 @@ uint8_t gHue = 0;                 // rotating "base color" used by many of the p
 #define NUM_SETTINGS_LEDS 50
 #define SETTINGS_LEDS_PIN 4
 
+#define NUM_TREETOP_LEDS 50
+#define TREETOP_LEDS_PIN 5
+
+#define NUM_TREE_LEDS 100
+#define TREE2_LEDS_PIN 6
+#define TREE3_LEDS_PIN 7
+#define TREE4_LEDS_PIN 8
+#define TREE5_LEDS_PIN 9
+#define TREE6_LEDS_PIN 10
+#define TREE7_LEDS_PIN 11
+
+
+
 // This is an array of leds.  One item for each led in your strip.
-CRGB settingsLEDS[NUM_SETTINGS_LEDS];
+//CRGB settingsLEDS[NUM_SETTINGS_LEDS];
+
+CRGB treeTopLEDS[NUM_TREETOP_LEDS];
+CRGB tree2LEDS[NUM_TREE_LEDS];
+CRGB tree3LEDS[NUM_TREE_LEDS];
+CRGB tree4LEDS[NUM_TREE_LEDS];
+CRGB tree5LEDS[NUM_TREE_LEDS];
+CRGB tree6LEDS[NUM_TREE_LEDS];
+CRGB tree7LEDS[NUM_TREE_LEDS];
+
+
 
 // Instantiate a Bounce object for the two buttons
 Bounce modeButton = Bounce();
@@ -46,7 +69,14 @@ void setup()
   funcButton.attach(FUNC_PIN);
   funcButton.interval(15); // interval in ms
 
-  FastLED.addLeds<WS2811, SETTINGS_LEDS_PIN, RGB>(settingsLEDS, NUM_SETTINGS_LEDS);
+  //FastLED.addLeds<WS2811, SETTINGS_LEDS_PIN, RGB>(settingsLEDS, NUM_SETTINGS_LEDS);
+  FastLED.addLeds<WS2811, TREETOP_LEDS_PIN, RGB>(treeTopLEDS, NUM_TREETOP_LEDS);
+  FastLED.addLeds<WS2811, TREE2_LEDS_PIN, RGB>(tree2LEDS, NUM_TREE_LEDS);
+  FastLED.addLeds<WS2811, TREE3_LEDS_PIN, RGB>(tree3LEDS, NUM_TREE_LEDS);
+  FastLED.addLeds<WS2811, TREE4_LEDS_PIN, RGB>(tree4LEDS, NUM_TREE_LEDS);
+  FastLED.addLeds<WS2811, TREE5_LEDS_PIN, RGB>(tree5LEDS, NUM_TREE_LEDS);
+  FastLED.addLeds<WS2811, TREE6_LEDS_PIN, RGB>(tree6LEDS, NUM_TREE_LEDS);
+  FastLED.addLeds<WS2811, TREE7_LEDS_PIN, RGB>(tree6LEDS, NUM_TREE_LEDS);
 
   Serial.begin(9600);
   Serial.println("Initialised");
@@ -54,8 +84,9 @@ void setup()
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*ModeList[])();
-ModeList gModes = {MoveWhiteLed, rainbow, rainbowWithGlitter, confetti, sinelon, juggle, bpm, oneColor};
-char *Modes[] = {"MoveWhiteLed", "rainbow", "rainbowWithGlitter", "confetti", "sinelon", "juggle", "bpm", "oneColor"};
+
+ModeList gModes = { rainbow, rainbowWithGlitter, confetti, oneColor};
+const char *Modes[] = { "rainbow", "rainbowWithGlitter", "confetti", "oneColor"};
 
 uint8_t gCurrentMode = 0; // Index number of which mode is current
 
@@ -101,34 +132,33 @@ void nextMode()
   for (int actLed = 0; actLed < NUM_SETTINGS_LEDS; actLed = actLed + 1)
   {
     // Turn our current led on to white, then show the leds
-    settingsLEDS[actLed] = CRGB::Black;
+    tree6LEDS[actLed] = CRGB::Black;
   }
-  settingsLEDS[gCurrentMode] = CRGB::Red;
+  tree6LEDS[gCurrentMode] = CRGB::Red;
   FastLED.show();
   delay(2000);
 }
 
-int delaySpeed = 100;
+unsigned int delaySpeed = 100;
 int whiteLed = 0;
-void MoveWhiteLed()
+/* void MoveWhiteLed()
 {
     if ((millis() - lastLEDTime) > delaySpeed)
     {
-      settingsLEDS[whiteLed] = CRGB::Black;
-      if (whiteLed == NUM_SETTINGS_LEDS) {
+    //  settingsLEDS[whiteLed] = CRGB::Black;
+      if (whiteLed == NUM_SETTINGS_LEDS - 1) {
         whiteLed = 0;
         }
       else  {
         whiteLed++;
       }
-      settingsLEDS[whiteLed] = CRGB::Violet;
+     // settingsLEDS[whiteLed] = CRGB::Violet;
       FastLED.show();
-
       lastLEDTime = millis();
     }
  
 }
-
+ */
 void FlashLED()
 {
   if (ledsOn == true)
@@ -151,7 +181,14 @@ void FlashLED()
 void rainbow()
 {
   // FastLED's built-in rainbow generator
-  fill_rainbow(settingsLEDS, NUM_SETTINGS_LEDS, gHue, 7);
+//  fill_rainbow(settingsLEDS, NUM_SETTINGS_LEDS, gHue, 7);
+  fill_rainbow(treeTopLEDS, NUM_TREETOP_LEDS, gHue, 7);
+  fill_rainbow(tree2LEDS, NUM_TREE_LEDS, gHue, 7);
+  fill_rainbow(tree3LEDS, NUM_TREE_LEDS, gHue, 7);
+  fill_rainbow(tree4LEDS, NUM_TREE_LEDS, gHue, 7);
+  fill_rainbow(tree5LEDS, NUM_TREE_LEDS, gHue, 7);
+  fill_rainbow(tree6LEDS, NUM_TREE_LEDS, gHue, 7);
+  fill_rainbow(tree7LEDS, NUM_TREE_LEDS, gHue, 7);
 }
 
 void rainbowWithGlitter()
@@ -163,24 +200,49 @@ void rainbowWithGlitter()
 
 void addGlitter(fract8 chanceOfGlitter)
 {
+  addGlitter(chanceOfGlitter, treeTopLEDS, NUM_TREETOP_LEDS);
+  addGlitter(chanceOfGlitter, tree2LEDS, NUM_TREE_LEDS);
+  addGlitter(chanceOfGlitter, tree3LEDS, NUM_TREE_LEDS);
+  addGlitter(chanceOfGlitter, tree4LEDS, NUM_TREE_LEDS);
+  addGlitter(chanceOfGlitter, tree5LEDS, NUM_TREE_LEDS);
+  addGlitter(chanceOfGlitter, tree6LEDS, NUM_TREE_LEDS);
+  addGlitter(chanceOfGlitter, tree7LEDS, NUM_TREE_LEDS);
+}
+
+void addGlitter(fract8 chanceOfGlitter, CRGB * liteArray, int ledCount )
+{
   if (random8() < chanceOfGlitter)
   {
-    settingsLEDS[random16(NUM_SETTINGS_LEDS)] += CRGB::White;
+    liteArray[random16(ledCount)] += CRGB::White;
   }
 }
 
 void confetti()
 {
   // random colored speckles that blink in and fade smoothly
-  fadeToBlackBy(settingsLEDS, NUM_SETTINGS_LEDS, 10);
-  int pos = random16(NUM_SETTINGS_LEDS);
-  settingsLEDS[pos] += CHSV(gHue + random8(64), 200, 255);
+  fadeNow(10);
+  randomConfetti(treeTopLEDS, NUM_TREETOP_LEDS);
+  randomConfetti(tree2LEDS, NUM_TREE_LEDS);
+  randomConfetti(tree3LEDS, NUM_TREE_LEDS);
+  randomConfetti(tree4LEDS, NUM_TREE_LEDS);
+  randomConfetti(tree5LEDS, NUM_TREE_LEDS);
+  randomConfetti(tree6LEDS, NUM_TREE_LEDS);
+  randomConfetti(tree7LEDS, NUM_TREE_LEDS);
 }
 
-void sinelon()
+void randomConfetti(CRGB * liteArray, int ledCount)
+{
+  if (random8(5) == 1) {
+    int pos = random16(ledCount);
+    liteArray[pos] += CHSV(gHue + random8(64), 200, 255);
+  }
+}
+
+
+/* void sinelon()
 {
   // a colored dot sweeping back and forth, with fading trails
-  fadeToBlackBy(settingsLEDS, NUM_SETTINGS_LEDS, 20);
+  fadeNow(20);
   int pos = beatsin16(13, 0, NUM_SETTINGS_LEDS - 1);
   settingsLEDS[pos] += CHSV(gHue, 255, 192);
 }
@@ -200,7 +262,7 @@ void bpm()
 void juggle()
 {
   // eight colored dots, weaving in and out of sync with each other
-  fadeToBlackBy(settingsLEDS, NUM_SETTINGS_LEDS, 20);
+  fadeNow(20);
   byte dothue = 0;
   for (int i = 0; i < 8; i++)
   {
@@ -208,19 +270,21 @@ void juggle()
     dothue += 32;
   }
 }
-
+ */
 bool isFade = false;
 int fadeVal = 25;
 int randVal = 40;
 void oneColor()
 {
   //  funcButton.update();
-  fadeToBlackBy(settingsLEDS, NUM_SETTINGS_LEDS, fadeVal);
-  if (random8() < randVal)
-  {
-    int pos = random16(NUM_SETTINGS_LEDS);
-    settingsLEDS[pos] += CHSV(gHue + random8(64), 200, 255);
-  }
+  fadeNow(fadeVal);
+  randomColor(treeTopLEDS, NUM_TREETOP_LEDS, randVal);
+  randomColor(tree2LEDS, NUM_TREE_LEDS, randVal);
+  randomColor(tree3LEDS, NUM_TREE_LEDS, randVal);
+  randomColor(tree4LEDS, NUM_TREE_LEDS, randVal);
+  randomColor(tree5LEDS, NUM_TREE_LEDS, randVal);
+  randomColor(tree6LEDS, NUM_TREE_LEDS, randVal);
+  randomColor(tree7LEDS, NUM_TREE_LEDS, randVal);
 
   if (funcButton.fell())
   {
@@ -239,4 +303,25 @@ void oneColor()
   Serial.print(fadeVal);
   Serial.print(" randVal =  ");
   Serial.println(randVal);
+}
+
+void randomColor(CRGB * liteArray, int ledCount, int howRandom)
+{
+  if (random8() < howRandom)
+  {
+    int pos = random16(ledCount);
+    liteArray[pos] += CHSV(gHue + random8(64), 200, 255);
+  }
+}
+
+void fadeNow(int fadeBy)
+{
+//  fadeToBlackBy(settingsLEDS, NUM_SETTINGS_LEDS, fadeVal);
+  fadeToBlackBy(treeTopLEDS, NUM_TREETOP_LEDS, fadeBy);
+  fadeToBlackBy(tree2LEDS, NUM_TREE_LEDS, fadeBy);
+  fadeToBlackBy(tree3LEDS, NUM_TREE_LEDS, fadeBy);
+  fadeToBlackBy(tree4LEDS, NUM_TREE_LEDS, fadeBy);
+  fadeToBlackBy(tree5LEDS, NUM_TREE_LEDS, fadeBy);
+  fadeToBlackBy(tree6LEDS, NUM_TREE_LEDS, fadeBy);
+  fadeToBlackBy(tree7LEDS, NUM_TREE_LEDS, fadeBy);
 }
