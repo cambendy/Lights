@@ -85,8 +85,8 @@ void setup()
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*ModeList[])();
 
-ModeList gModes = { rainbow, rainbowWithGlitter, confetti, oneColor};
-const char *Modes[] = { "rainbow", "rainbowWithGlitter", "confetti", "oneColor"};
+ModeList gModes = { blueLights,  blueWithGlitter, oneColor, rainbow, rainbowWithGlitter, confetti, blueRedLights} ;
+const char *Modes[] = { "blueLights", "blueWithGlitter", "oneColor", "rainbow", "rainbowWithGlitter", "confetti", "blueRedLights"};
 
 uint8_t gCurrentMode = 0; // Index number of which mode is current
 
@@ -136,7 +136,7 @@ void nextMode()
   }
   tree6LEDS[gCurrentMode] = CRGB::Red;
   FastLED.show();
-  delay(2000);
+  delay(500);
 }
 
 unsigned int delaySpeed = 100;
@@ -307,10 +307,16 @@ void oneColor()
 
 void randomColor(CRGB * liteArray, int ledCount, int howRandom)
 {
+    randomSetColor(liteArray, ledCount,  howRandom, CHSV(gHue + random8(64), 200, 255));
+}
+
+void randomSetColor(CRGB * liteArray, int ledCount, int howRandom, CRGB aColor)
+{
   if (random8() < howRandom)
   {
     int pos = random16(ledCount);
-    liteArray[pos] += CHSV(gHue + random8(64), 200, 255);
+    liteArray[pos] += aColor;
+    liteArray[pos].fadeLightBy(random8(20));
   }
 }
 
@@ -324,4 +330,90 @@ void fadeNow(int fadeBy)
   fadeToBlackBy(tree5LEDS, NUM_TREE_LEDS, fadeBy);
   fadeToBlackBy(tree6LEDS, NUM_TREE_LEDS, fadeBy);
   fadeToBlackBy(tree7LEDS, NUM_TREE_LEDS, fadeBy);
+}
+
+
+void blueLights()
+{
+  fadeNow(fadeVal);
+  randomSetColor(treeTopLEDS, NUM_TREETOP_LEDS, randVal, aRandomBlue());
+  randomSetColor(tree2LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+  randomSetColor(tree3LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+  randomSetColor(tree4LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+  randomSetColor(tree5LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+  randomSetColor(tree6LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+  randomSetColor(tree7LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+}
+
+void blueWithGlitter()
+{
+  blueLights();
+  addGlitter(10);
+}
+
+
+void blueRedLights()
+{
+  fadeNow(fadeVal);
+  randomSetColor(treeTopLEDS, NUM_TREETOP_LEDS, randVal, aRandomBlueRed());
+  randomSetColor(tree2LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+  randomSetColor(tree3LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+  randomSetColor(tree4LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+  randomSetColor(tree5LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+  randomSetColor(tree6LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+  randomSetColor(tree7LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+}
+
+
+CRGB aRandomBlue()
+{
+   return ColorFromPalette( OceanColors_p, random8(15) );
+}
+
+extern const TProgmemRGBPalette32 BlueRedColors_p FL_PROGMEM =
+{
+  CRGB::MidnightBlue,
+  CRGB::DarkBlue,
+  CRGB::MidnightBlue,
+  CRGB::Navy,
+
+  CRGB::Red,
+  CRGB::DarkRed,
+  CRGB::Maroon,
+  CRGB::DarkRed,
+   
+  CRGB::DarkBlue,
+  CRGB::MediumBlue,
+  CRGB::SeaGreen,
+  CRGB::Teal,
+   
+  CRGB::CadetBlue,
+  CRGB::Blue,
+  CRGB::DarkCyan,
+  CRGB::CornflowerBlue,
+   
+  CRGB::Aquamarine,
+  CRGB::SeaGreen,
+  CRGB::Aqua,
+  CRGB::LightSkyBlue,
+
+  CRGB::DarkRed,
+  CRGB::DarkRed,
+  CRGB::Red,
+  CRGB::Purple,
+
+  CRGB::MidnightBlue,
+  CRGB::DarkBlue,
+  CRGB::MidnightBlue,
+  CRGB::Navy,
+
+  CRGB::Red,
+  CRGB::DarkRed,
+  CRGB::Maroon,
+  CRGB::DarkRed
+};
+
+CRGB aRandomBlueRed()
+{
+   return ColorFromPalette( BlueRedColors_p, random8(31) );
 }
