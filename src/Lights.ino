@@ -1,5 +1,7 @@
+#include <limits.h>
 #include <FastLED.h>
 #include <Bounce2.h>
+#include <QueueArray.h>
 
 #define MODE_PIN 2
 #define FUNC_PIN 3
@@ -28,7 +30,10 @@ uint8_t gHue = 0;                 // rotating "base color" used by many of the p
 #define NUM_TREETOP_LEDS 50
 #define TREETOP_LEDS_PIN 5
 
-#define NUM_TREE_LEDS 100
+#define NUM_BRANCH_LEDS 100
+#define NUM_TREE_LEDS 650
+
+
 #define TREE2_LEDS_PIN 6
 #define TREE3_LEDS_PIN 7
 #define TREE4_LEDS_PIN 8
@@ -36,26 +41,15 @@ uint8_t gHue = 0;                 // rotating "base color" used by many of the p
 #define TREE6_LEDS_PIN 10
 #define TREE7_LEDS_PIN 11
 
-
-
-// This is an array of leds.  One item for each led in your strip.
-//CRGB settingsLEDS[NUM_SETTINGS_LEDS];
-
-CRGB treeTopLEDS[NUM_TREETOP_LEDS];
-CRGB tree2LEDS[NUM_TREE_LEDS];
-CRGB tree3LEDS[NUM_TREE_LEDS];
-CRGB tree4LEDS[NUM_TREE_LEDS];
-CRGB tree5LEDS[NUM_TREE_LEDS];
-CRGB tree6LEDS[NUM_TREE_LEDS];
-CRGB tree7LEDS[NUM_TREE_LEDS];
-
-
+CRGB allTreeLEDS[NUM_TREE_LEDS];
 
 // Instantiate a Bounce object for the two buttons
 Bounce modeButton = Bounce();
 Bounce funcButton = Bounce();
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+
+QueueArray <uint16_t > glitterQ;
 
 void setup()
 {
@@ -69,26 +63,44 @@ void setup()
   funcButton.attach(FUNC_PIN);
   funcButton.interval(15); // interval in ms
 
-  //FastLED.addLeds<WS2811, SETTINGS_LEDS_PIN, RGB>(settingsLEDS, NUM_SETTINGS_LEDS);
-  FastLED.addLeds<WS2811, TREETOP_LEDS_PIN, RGB>(treeTopLEDS, NUM_TREETOP_LEDS);
-  FastLED.addLeds<WS2811, TREE2_LEDS_PIN, RGB>(tree2LEDS, NUM_TREE_LEDS);
-  FastLED.addLeds<WS2811, TREE3_LEDS_PIN, RGB>(tree3LEDS, NUM_TREE_LEDS);
-  FastLED.addLeds<WS2811, TREE4_LEDS_PIN, RGB>(tree4LEDS, NUM_TREE_LEDS);
-  FastLED.addLeds<WS2811, TREE5_LEDS_PIN, RGB>(tree5LEDS, NUM_TREE_LEDS);
-  FastLED.addLeds<WS2811, TREE6_LEDS_PIN, RGB>(tree6LEDS, NUM_TREE_LEDS);
-  FastLED.addLeds<WS2811, TREE7_LEDS_PIN, RGB>(tree6LEDS, NUM_TREE_LEDS);
+  FastLED.addLeds<WS2811, TREE7_LEDS_PIN>(allTreeLEDS, 0, NUM_BRANCH_LEDS);
+  FastLED.addLeds<WS2811, TREE6_LEDS_PIN>(allTreeLEDS, 1*NUM_BRANCH_LEDS, NUM_BRANCH_LEDS);
+  FastLED.addLeds<WS2811, TREE5_LEDS_PIN>(allTreeLEDS, 2*NUM_BRANCH_LEDS, NUM_BRANCH_LEDS);
+  FastLED.addLeds<WS2811, TREE4_LEDS_PIN>(allTreeLEDS, 3*NUM_BRANCH_LEDS, NUM_BRANCH_LEDS);
+  FastLED.addLeds<WS2811, TREE3_LEDS_PIN>(allTreeLEDS, 4*NUM_BRANCH_LEDS, NUM_BRANCH_LEDS);
+  FastLED.addLeds<WS2811, TREE2_LEDS_PIN>(allTreeLEDS, 5*NUM_BRANCH_LEDS, NUM_BRANCH_LEDS);
+  FastLED.addLeds<WS2811, TREETOP_LEDS_PIN>(allTreeLEDS, 6*NUM_BRANCH_LEDS, NUM_TREETOP_LEDS);
 
   Serial.begin(9600);
+  glitterQ.setPrinter(Serial);
   Serial.println("Initialised");
 }
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*ModeList[])();
 
-ModeList gModes = { blueLights,  blueWithGlitter, oneColor, rainbow, rainbowWithGlitter, confetti, blueRedLights, justGlitter, rotateAllModes} ;
-const char *Modes[] = { "blueLights", "blueWithGlitter", "oneColor", "rainbow", "rainbowWithGlitter", "confetti", "blueRedLights", "justGlitter", "rotateAllModes"};
+ModeList gModes = { blueLights,  
+                    blueWithGlitter, 
+                    oneColor, 
+                    myrainbow, 
+                    myrainbowWithGlitter, 
+                    confetti, 
+                    blueRedLights, 
+                    justGlitter, 
+                    rainbow,
+                    rotateAllModes} ;
+const char *Modes[] = { "blueLights", 
+                        "blueWithGlitter", 
+                        "oneColor", 
+                        "myrainbow", 
+                        "myrainbowWithGlitter", 
+                        "confetti", 
+                        "blueRedLights", 
+                        "justGlitter", 
+                        "rainbow"
+                        "rotateAllModes"};
 
-uint8_t gCurrentMode = (ARRAY_SIZE(gModes) - 1); // Index number of which mode is current
+uint8_t gCurrentMode = (ARRAY_SIZE(gModes) - 1); // Index number of which mode is current - start at rotateAllModes
 
 void loop()
 {
@@ -110,14 +122,93 @@ void loop()
     Serial.println("Button Pressed");
   }
  
+  SettingsUpdate();
+
   EVERY_N_MILLISECONDS(20)
   {
     gHue++; // slowly cycle the "base color" through the rainbow
   }
 }
 
-void ModeChange()
+bool updateSettings = false;
+unsigned long updateSettingsTime = ULONG_MAX; // Used to time out MODE changing
+int prevAnalogVal = 0;
+int analogVal;
+
+bool isFade = false;
+int fadeVal = 25;
+int randVal = 280;
+
+void SettingsUpdate()
 {
+  
+  if (funcButton.fell()){
+    updateSettingsTime = millis();
+  }
+
+  while ((millis() - 3000) > updateSettingsTime){
+    analogVal = analogRead(brightnessDial);
+    if (abs(analogVal - prevAnalogVal) > 10) {
+      //The dial was touched!
+      updateSettingsTime = millis();
+
+      switch (gCurrentMode){
+        case 0: //blueLights
+          break;
+        
+        case 1: //blueWithGlitter", 
+          break;
+        
+        case 2: //oneColor
+          if (funcButton.fell())
+          {
+            Serial.println("Func pressed");
+            isFade = !isFade;
+          }
+          if (isFade)
+          {
+            fadeVal = map(analogRead(brightnessDial), 0, 1023, 1, 40);
+          }
+          else
+          {
+            randVal = map(analogRead(brightnessDial), 0, 1023, 1, 500);
+          }
+          Serial.print("fadeVal =  ");
+          Serial.print(fadeVal);
+          Serial.print(" randVal =  ");
+          Serial.println(randVal);
+          break;
+        
+        case 3: //myrainbow
+        case 4: //myrainbowWithGlitter
+          break;
+        
+        case 5: //confetti
+          break;
+        
+        case 6: //blueRedLights
+          break;
+        
+        case 7: //justGlitter
+          break;
+        
+        case 8: //rainbow
+          break;
+        
+        case 9: //rotateAllModes
+          break;
+        
+        default:
+          break; //SHOULD NEVER HIT THIS!
+      }
+      
+
+    } 
+    prevAnalogVal = analogVal;
+  } //Loop here while updateing settings - NOTE - LEDS wont display unless explicitly called 
+  if (funcButton.fell()){
+    updateSettingsTime = millis(); //Enter update mode
+  }
 }
 
 void nextMode()
@@ -132,9 +223,9 @@ void nextMode()
   for (int actLed = 0; actLed < NUM_SETTINGS_LEDS; actLed = actLed + 1)
   {
     // Turn our current led on to white, then show the leds
-    tree6LEDS[actLed] = CRGB::Black;
+    allTreeLEDS[actLed] = CRGB::Black;
   }
-  tree6LEDS[gCurrentMode] = CRGB::Red;
+  allTreeLEDS[gCurrentMode] = CRGB::Red;
   FastLED.show();
   delay(500);
 }
@@ -178,56 +269,69 @@ void FlashLED()
   }
 }
 
+void myrainbow()
+{
+  myfill_rainbow(allTreeLEDS, NUM_TREE_LEDS, gHue, 1);
+}
+
 void rainbow()
 {
-  // FastLED's built-in rainbow generator
-//  fill_rainbow(settingsLEDS, NUM_SETTINGS_LEDS, gHue, 7);
-  fill_rainbow(treeTopLEDS, NUM_TREETOP_LEDS, gHue, 7);
-  fill_rainbow(tree2LEDS, NUM_TREE_LEDS, gHue, 7);
-  fill_rainbow(tree3LEDS, NUM_TREE_LEDS, gHue, 7);
-  fill_rainbow(tree4LEDS, NUM_TREE_LEDS, gHue, 7);
-  fill_rainbow(tree5LEDS, NUM_TREE_LEDS, gHue, 7);
-  fill_rainbow(tree6LEDS, NUM_TREE_LEDS, gHue, 7);
-  fill_rainbow(tree7LEDS, NUM_TREE_LEDS, gHue, 7);
+  fill_rainbow(allTreeLEDS, NUM_TREE_LEDS, gHue, 1);
 }
 
-void rainbowWithGlitter()
+void myrainbowWithGlitter()
 {
   // built-in FastLED rainbow, plus some random sparkly glitter
-  rainbow();
-  addGlitter(80);
+  myrainbow();
+  glitter(25, false);
 }
 
-void addGlitter(fract8 chanceOfGlitter)
+
+void myfill_rainbow( struct CRGB * pFirstLED, int numToFill,
+                  uint8_t initialhue,
+                  uint8_t deltahue )
 {
-  addGlitter(chanceOfGlitter, treeTopLEDS, NUM_TREETOP_LEDS);
-  addGlitter(chanceOfGlitter, tree2LEDS, NUM_TREE_LEDS);
-  addGlitter(chanceOfGlitter, tree3LEDS, NUM_TREE_LEDS);
-  addGlitter(chanceOfGlitter, tree4LEDS, NUM_TREE_LEDS);
-  addGlitter(chanceOfGlitter, tree5LEDS, NUM_TREE_LEDS);
-  addGlitter(chanceOfGlitter, tree6LEDS, NUM_TREE_LEDS);
-  addGlitter(chanceOfGlitter, tree7LEDS, NUM_TREE_LEDS);
+    CHSV hsv;
+    hsv.hue = initialhue;
+    hsv.val = 64;
+    hsv.sat = 254;
+
+    for( int i = 0; i < numToFill; i++) {
+        pFirstLED[i] = hsv;
+        hsv.hue += deltahue;
+    }
 }
 
-void addGlitter(fract8 chanceOfGlitter, CRGB * liteArray, int ledCount )
+int maxGlitter = 2;
+
+void addGlitter(fract8 chanceOfGlitter, CRGB * liteArray, int ledCount, bool blackOut )
 {
   if (random8() < chanceOfGlitter)
   {
-    liteArray[random16(ledCount)] += CRGB::White;
+    uint16_t ledNbr = random16(ledCount);
+    if (blackOut == true) {
+      glitterQ.push(ledNbr);
+      if (glitterQ.count()>maxGlitter)
+      {
+        liteArray[glitterQ.pop()] = CRGB::Black;
+      }
+    }   
+    liteArray[ledNbr] += CRGB::White;
   }
 }
+
+void glitter(fract8 chanceOfGlitter, bool blackOut )
+{
+  addGlitter(chanceOfGlitter, allTreeLEDS, NUM_TREE_LEDS, blackOut);
+}
+
 
 void confetti()
 {
   // random colored speckles that blink in and fade smoothly
   fadeNow(10);
-  randomConfetti(treeTopLEDS, NUM_TREETOP_LEDS);
-  randomConfetti(tree2LEDS, NUM_TREE_LEDS);
-  randomConfetti(tree3LEDS, NUM_TREE_LEDS);
-  randomConfetti(tree4LEDS, NUM_TREE_LEDS);
-  randomConfetti(tree5LEDS, NUM_TREE_LEDS);
-  randomConfetti(tree6LEDS, NUM_TREE_LEDS);
-  randomConfetti(tree7LEDS, NUM_TREE_LEDS);
+
+  randomConfetti(allTreeLEDS, NUM_TREE_LEDS);
 }
 
 void randomConfetti(CRGB * liteArray, int ledCount)
@@ -238,38 +342,10 @@ void randomConfetti(CRGB * liteArray, int ledCount)
   }
 }
 
-bool isFade = false;
-int fadeVal = 25;
-int randVal = 40;
 void oneColor()
 {
-  //  funcButton.update();
   fadeNow(fadeVal);
-  randomColor(treeTopLEDS, NUM_TREETOP_LEDS, randVal);
-  randomColor(tree2LEDS, NUM_TREE_LEDS, randVal);
-  randomColor(tree3LEDS, NUM_TREE_LEDS, randVal);
-  randomColor(tree4LEDS, NUM_TREE_LEDS, randVal);
-  randomColor(tree5LEDS, NUM_TREE_LEDS, randVal);
-  randomColor(tree6LEDS, NUM_TREE_LEDS, randVal);
-  randomColor(tree7LEDS, NUM_TREE_LEDS, randVal);
-
-  if (funcButton.fell())
-  {
-    Serial.println("Func pressed");
-    isFade = !isFade;
-  }
-  if (isFade)
-  {
-    fadeVal = map(analogRead(brightnessDial), 0, 1023, 1, 40);
-  }
-  else
-  {
-    randVal = map(analogRead(brightnessDial), 0, 1023, 1, 100);
-  }
-  Serial.print("fadeVal =  ");
-  Serial.print(fadeVal);
-  Serial.print(" randVal =  ");
-  Serial.println(randVal);
+  randomColor(allTreeLEDS, NUM_TREE_LEDS, randVal);
 }
 
 void randomColor(CRGB * liteArray, int ledCount, int howRandom)
@@ -289,46 +365,27 @@ void randomSetColor(CRGB * liteArray, int ledCount, int howRandom, CRGB aColor)
 
 void fadeNow(int fadeBy)
 {
-//  fadeToBlackBy(settingsLEDS, NUM_SETTINGS_LEDS, fadeVal);
-  fadeToBlackBy(treeTopLEDS, NUM_TREETOP_LEDS, fadeBy);
-  fadeToBlackBy(tree2LEDS, NUM_TREE_LEDS, fadeBy);
-  fadeToBlackBy(tree3LEDS, NUM_TREE_LEDS, fadeBy);
-  fadeToBlackBy(tree4LEDS, NUM_TREE_LEDS, fadeBy);
-  fadeToBlackBy(tree5LEDS, NUM_TREE_LEDS, fadeBy);
-  fadeToBlackBy(tree6LEDS, NUM_TREE_LEDS, fadeBy);
-  fadeToBlackBy(tree7LEDS, NUM_TREE_LEDS, fadeBy);
+  fadeToBlackBy(allTreeLEDS, NUM_TREE_LEDS, fadeBy);
 }
 
 
 void blueLights()
 {
   fadeNow(fadeVal);
-  randomSetColor(treeTopLEDS, NUM_TREETOP_LEDS, randVal, aRandomBlue());
-  randomSetColor(tree2LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
-  randomSetColor(tree3LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
-  randomSetColor(tree4LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
-  randomSetColor(tree5LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
-  randomSetColor(tree6LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
-  randomSetColor(tree7LEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+  randomSetColor(allTreeLEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
 }
 
 void blueWithGlitter()
 {
   blueLights();
-  addGlitter(10);
+  glitter(100, true);
 }
 
 
 void blueRedLights()
 {
   fadeNow(fadeVal);
-  randomSetColor(treeTopLEDS, NUM_TREETOP_LEDS, randVal, aRandomBlueRed());
-  randomSetColor(tree2LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
-  randomSetColor(tree3LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
-  randomSetColor(tree4LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
-  randomSetColor(tree5LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
-  randomSetColor(tree6LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
-  randomSetColor(tree7LEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+  randomSetColor(allTreeLEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
 }
 
 
@@ -388,7 +445,7 @@ CRGB aRandomBlueRed()
 void justGlitter()
 {
   fadeNow(90);
-  addGlitter(50);
+  glitter(100, false);
 }
 
 uint8_t gTempCurrentMode = 0; // Index number of which mode is current
@@ -397,18 +454,9 @@ unsigned long tempModeLength = 120000; //How long to let each mode run for
 
 void rotateAllModes()
 {
-/*     Serial.print("Temp time = ");
-    Serial.print(tempModeTime + tempModeLength);
-    Serial.print("Temp mode = ");
-    Serial.print(tempModeTime );
-    Serial.print("Temp mode legnth= ");
-    Serial.print( tempModeLength);
-    Serial.print(" - Milli = ");
-    Serial.println(millis());
- */  
   if (tempModeTime + tempModeLength < millis()) {
-    //change modes
-    gTempCurrentMode = (gTempCurrentMode + 1) % (ARRAY_SIZE(gModes) - 1);
+    //Time to change modes - but lets skip the full rainbow and the all modes, of course!
+    gTempCurrentMode = (gTempCurrentMode + 1) % (ARRAY_SIZE(gModes) - 2);
     Serial.print("Temp Mode = ");
     Serial.print(gTempCurrentMode);
     Serial.print(" - ");
