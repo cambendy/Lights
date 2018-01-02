@@ -8,13 +8,9 @@
 int brightnessDial = A0;          // select the input pin for the potentiometer
 int ledPin = 13;                  // select the pin for the LED
 
-unsigned int sensorValue = 0;              // variable to store the value coming from the sensor
-
-int ledState = HIGH;              // the current state of the output pin
 bool ledsOn = false;
 
-int lastLEDState = LOW;           // the current state of the LED Light
-unsigned long lastLEDTime = 0;    // the last time the LED was toggled
+unsigned int sensorValue = 0;              // variable to store the value coming from the sensor
 
 bool updateMode = false;
 unsigned long updateModeTime = 0; // Used to time out MODE changing
@@ -136,8 +132,29 @@ int prevAnalogVal = 0;
 int analogVal;
 
 bool isFade = false;
-int fadeVal = 25;
-int randVal = 280;
+
+struct SetVars{       //Defaults
+  int BlueFade;       //25
+  int BlueRand;       //280
+  int BlueGlitter;    //100
+
+  int ColfadeVal;     //25
+  int ColrandVal;     //280
+
+  int RainbowVal;     //64
+  int RainbowSat;     //254
+
+  int RainbowGlitter; //25
+
+  int BlueRedFade;    //25
+  int BlueRedRand;    //280
+
+  int JustGlitterFade;//90
+  int JustGlitterRand;//100
+   
+};
+
+SetVars mySet = {25,280,100, 25,280, 64, 254, 25, 25, 280, 90, 100};
 
 void SettingsUpdate()
 {
@@ -146,50 +163,132 @@ void SettingsUpdate()
     updateSettingsTime = millis();
   }
 
-  while ((millis() - 3000) > updateSettingsTime){
+  while ((millis() - 3000) < updateSettingsTime){
+    FlashLED();
     analogVal = analogRead(brightnessDial);
     if (abs(analogVal - prevAnalogVal) > 10) {
       //The dial was touched!
+      Serial.println("Dial touched");
       updateSettingsTime = millis();
+    }
 
       switch (gCurrentMode){
         case 0: //blueLights
+          if (funcButton.fell())
+          {
+            updateSettingsTime = millis();
+//            Serial.println("Func pressed");
+            isFade = !isFade;
+          }
+          if (isFade)
+          {
+            mySet.BlueFade = map(analogRead(brightnessDial), 0, 1023, 1, 50);
+          }
+          else
+          {
+            mySet.BlueRand = map(analogRead(brightnessDial), 0, 1023, 1, 500);
+          }
+          Serial.print("BlueFade =  ");
+          Serial.print(mySet.BlueFade);
+          Serial.print(" BlueRand =  ");
+          Serial.println(mySet.BlueRand);
           break;
         
         case 1: //blueWithGlitter", 
+          mySet.BlueGlitter = map(analogRead(brightnessDial), 0, 1023, 1, 200);
+          Serial.print(" BlueGlitter =  ");
+          Serial.println(mySet.BlueGlitter);
           break;
         
         case 2: //oneColor
           if (funcButton.fell())
           {
-            Serial.println("Func pressed");
+            updateSettingsTime = millis();
+
             isFade = !isFade;
           }
           if (isFade)
           {
-            fadeVal = map(analogRead(brightnessDial), 0, 1023, 1, 40);
+            mySet.ColfadeVal = map(analogRead(brightnessDial), 0, 1023, 1, 40);
           }
           else
           {
-            randVal = map(analogRead(brightnessDial), 0, 1023, 1, 500);
+            mySet.ColrandVal = map(analogRead(brightnessDial), 0, 1023, 1, 500);
           }
           Serial.print("fadeVal =  ");
-          Serial.print(fadeVal);
+          Serial.print(mySet.ColfadeVal);
           Serial.print(" randVal =  ");
-          Serial.println(randVal);
+          Serial.println(mySet.ColrandVal);
           break;
         
         case 3: //myrainbow
+          if (funcButton.fell())
+          {
+            updateSettingsTime = millis();
+            isFade = !isFade;
+          }
+          if (isFade)
+          {
+            mySet.RainbowSat = map(analogRead(brightnessDial), 0, 1023, 1, 255);
+          }
+          else
+          {
+            mySet.RainbowVal = map(analogRead(brightnessDial), 0, 1023, 1, 255);
+          }
+          Serial.print("RainbowSat =  ");
+          Serial.print(mySet.RainbowSat);
+          Serial.print(" RainbowVal =  ");
+          Serial.println(mySet.RainbowVal);
+          break;
+        
         case 4: //myrainbowWithGlitter
+          mySet.RainbowGlitter = map(analogRead(brightnessDial), 0, 1023, 1, 200);
+          Serial.print(" RainbowGlitter =  ");
+          Serial.println(mySet.RainbowGlitter);
+
           break;
         
         case 5: //confetti
           break;
         
         case 6: //blueRedLights
+          if (funcButton.fell())
+          {
+            updateSettingsTime = millis();
+            isFade = !isFade;
+          }
+          if (isFade)
+          {
+            mySet.BlueRedFade = map(analogRead(brightnessDial), 0, 1023, 1, 50);
+          }
+          else
+          {
+            mySet.BlueRedRand = map(analogRead(brightnessDial), 0, 1023, 1, 500);
+          }
+          Serial.print("BlueRedFade =  ");
+          Serial.print(mySet.BlueRedFade);
+          Serial.print(" BlueRand =  ");
+          Serial.println(mySet.BlueRedRand);
           break;
-        
+          
         case 7: //justGlitter
+          if (funcButton.fell())
+          {
+            updateSettingsTime = millis();
+            isFade = !isFade;
+          }
+          if (isFade)
+          {
+            mySet.JustGlitterFade = map(analogRead(brightnessDial), 0, 1023, 1, 50);
+          }
+          else
+          {
+            mySet.JustGlitterRand = map(analogRead(brightnessDial), 0, 1023, 1, 500);
+          }
+          Serial.print("JustGlitterFade =  ");
+          Serial.print(mySet.JustGlitterFade);
+          Serial.print(" JustGlitterRand =  ");
+          Serial.println(mySet.JustGlitterRand);
           break;
         
         case 8: //rainbow
@@ -201,9 +300,8 @@ void SettingsUpdate()
         default:
           break; //SHOULD NEVER HIT THIS!
       }
-      
-
-    } 
+    
+    gModes[gCurrentMode](); //Call the mode to update the display of lights as settings are changing
     prevAnalogVal = analogVal;
   } //Loop here while updateing settings - NOTE - LEDS wont display unless explicitly called 
   if (funcButton.fell()){
@@ -225,6 +323,7 @@ void nextMode()
     // Turn our current led on to white, then show the leds
     allTreeLEDS[actLed] = CRGB::Black;
   }
+  FlashLED();
   allTreeLEDS[gCurrentMode] = CRGB::Red;
   FastLED.show();
   delay(500);
@@ -249,25 +348,41 @@ int whiteLed = 0;
     }
  
 }
+
  */
+
+int ledState = HIGH;              // the current state of the output pin
+byte blinkCount = 0;
+int lastLEDState = LOW;           // the current state of the LED Light
+unsigned long lastLEDTime = 0;    // the last time the LED was toggled
+
 void FlashLED()
 {
-  if (ledsOn == true)
-  {
-    // read the value from the sensor:
-    sensorValue = analogRead(brightnessDial);
-    //Serial.print(" sensorValue = ");
-    //Serial.println (sensorValue );
-    if ((millis() - lastLEDTime) > sensorValue)
-    {
-      //Flash led
-      //Store lastLed
-      lastLEDState = !lastLEDState;
-      digitalWrite(ledPin, lastLEDState);
-      lastLEDTime = millis();
-    }
-  }
-}
+  unsigned long currentMillis = millis();
+ 
+  if(currentMillis - lastLEDTime > 200) {
+    // save the last time you blinked the LED 
+    lastLEDTime = currentMillis;   
+ 
+    if (blinkCount <= gCurrentMode)
+    // if the LED is off turn it on and vice-versa:
+      if (ledState == LOW)
+      {
+       ledState = HIGH;
+       blinkCount++;
+     }
+     else
+       ledState = LOW;
+   else
+   {
+      ledState = LOW;
+      blinkCount++;
+      if (blinkCount > 15)
+        blinkCount = 0;
+   }
+    // set the LED with the ledState of the variable:
+    digitalWrite(ledPin, ledState);
+  }}
 
 void myrainbow()
 {
@@ -283,7 +398,7 @@ void myrainbowWithGlitter()
 {
   // built-in FastLED rainbow, plus some random sparkly glitter
   myrainbow();
-  glitter(25, false);
+  glitter(mySet.RainbowGlitter, false);
 }
 
 
@@ -293,8 +408,8 @@ void myfill_rainbow( struct CRGB * pFirstLED, int numToFill,
 {
     CHSV hsv;
     hsv.hue = initialhue;
-    hsv.val = 64;
-    hsv.sat = 254;
+    hsv.val = mySet.RainbowVal;
+    hsv.sat = mySet.RainbowSat;
 
     for( int i = 0; i < numToFill; i++) {
         pFirstLED[i] = hsv;
@@ -344,8 +459,8 @@ void randomConfetti(CRGB * liteArray, int ledCount)
 
 void oneColor()
 {
-  fadeNow(fadeVal);
-  randomColor(allTreeLEDS, NUM_TREE_LEDS, randVal);
+  fadeNow(mySet.ColfadeVal);
+  randomColor(allTreeLEDS, NUM_TREE_LEDS, mySet.ColrandVal);
 }
 
 void randomColor(CRGB * liteArray, int ledCount, int howRandom)
@@ -371,21 +486,21 @@ void fadeNow(int fadeBy)
 
 void blueLights()
 {
-  fadeNow(fadeVal);
-  randomSetColor(allTreeLEDS, NUM_TREE_LEDS, randVal, aRandomBlue());
+  fadeNow(mySet.BlueFade);
+  randomSetColor(allTreeLEDS, NUM_TREE_LEDS, mySet.BlueRand, aRandomBlue());
 }
 
 void blueWithGlitter()
 {
   blueLights();
-  glitter(100, true);
+  glitter(mySet.BlueGlitter, true);
 }
 
 
 void blueRedLights()
 {
-  fadeNow(fadeVal);
-  randomSetColor(allTreeLEDS, NUM_TREE_LEDS, randVal, aRandomBlueRed());
+  fadeNow(mySet.BlueRedFade);
+  randomSetColor(allTreeLEDS, NUM_TREE_LEDS, mySet.BlueRedRand, aRandomBlueRed());
 }
 
 
@@ -444,8 +559,8 @@ CRGB aRandomBlueRed()
 
 void justGlitter()
 {
-  fadeNow(90);
-  glitter(100, false);
+  fadeNow(mySet.JustGlitterFade);
+  glitter(mySet.JustGlitterRand, false);
 }
 
 uint8_t gTempCurrentMode = 0; // Index number of which mode is current
